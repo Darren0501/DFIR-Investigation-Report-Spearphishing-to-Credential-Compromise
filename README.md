@@ -68,7 +68,7 @@ The entry point is a double-extension shortcut, `CompanyA_Invoice.pdf.lnk`, plac
 | `{Common Programs}\Administrative Tools\Event Viewer.lnk` | 2 | (post-exploit) |
 
 ![Figure 2 — UserAssist evidence of LNK execution](Image/fig02_userassist.png)
-***Figure 2.** Registry Explorer — UserAssist. `CompanyA_Invoice.pdf.lnk` shows a run count of 1 at 15:46:19, establishing the user-execution entry point (T1204.002).*
+***Figure 2.** UserAssist. `CompanyA_Invoice.pdf.lnk` shows a run count of 1 at 15:46:19, establishing the user-execution entry point (T1204.002).*
 
 ---
 
@@ -89,7 +89,7 @@ The destination `20.205.243.166` (contacted during Phase 0 staging) is within **
 `whoami.exe` (T1033 — System Owner/User Discovery) and `hostname.exe` (T1082 — System Information Discovery) were executed repeatedly between 15:46:30 and 15:47:34 (confirmed in both **Prefetch** and **Sysmon**), consistent with automated recon between stages.
 
 ![Figure 3 — Prefetch: executed binaries](Image/fig03_prefetch_timeline.png)
-***Figure 3.** PECmd — binaries executed from the victim volume, showing the `powershell → whoami/hostname → schtasks → rundll32 → wevtutil` progression.*
+***Figure 3.** Prefetch shows binaries executed from the victim volume, showing the `powershell → whoami/hostname → schtasks → rundll32 → wevtutil` progression.*
 
 ---
 
@@ -141,7 +141,7 @@ rundll32.exe C:\windows\System32\comsvcs.dll MiniDump 840 C:\Users\Victim\AppDat
 - **What the dump actually yields:** On a default Windows 11 host, offline parsing of this dump recovers **NTLM hashes** and **Kerberos ticket/TGT material** suitable for pass-the-hash / pass-the-ticket. **Cleartext passwords are *not* present by default** — they would only appear if **`WDigest` caching was enabled** (`HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigest\UseLogonCredential = 1`). Verify that value before asserting cleartext exposure.
 
 ![Figure 4 — Prefetch: last-execution times for key binaries](Image/fig04_bam.png)
-***Figure 4.** PECmd — last-run times, including `powershell.exe` (15:47:37) and `cmd.exe` (15:48:48), corroborating the credential-access window.*
+***Figure 4.** bam shows last-run times, including `powershell.exe` (15:47:37) and `cmd.exe` (15:48:48), corroborating the credential-access window.*
 
 ---
 
