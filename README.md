@@ -1,8 +1,5 @@
 # DFIR Investigation Report: Spearphishing to Credential Compromise
 
-> **Case ID:** LAB-DFIR-2026-0902 · **Classification:** Internal / Educational · **Report status:** Final
-> **Analyst:** Senior DFIR Analyst · **Report date:** 2026-09-02 · **Timezone of all timestamps:** UTC (unless stated otherwise)
-
 ---
 
 ## 1. Executive Summary
@@ -287,20 +284,6 @@ Expected clearing artifacts to corroborate this (collect from any forwarded/SIEM
 - **Framework:** [MITRE ATT&CK](https://attack.mitre.org/).
 
 ---
-
-## 10. Figure Index
-
-| Figure | File | Shows |
-|---|---|---|
-| 1 | `images/fig01-sysmon-timeline.png` | Master Sysmon/Defender timeline (Timeline Explorer) |
-| 2 | `images/fig02-userassist.png` | UserAssist — LNK execution |
-| 3 | `images/fig03-prefetch-executables.png` | Prefetch — executed binaries |
-| 4 | `images/fig04-prefetch-lastrun.png` | Prefetch — last-run times |
-| 5 | `images/fig05-taskscheduler-tree.png` | Task Scheduler tree — rogue tasks |
-| 6 | `images/fig06-task-onlogon.png` | Scheduled task detail — OnLogon |
-| 7 | `images/fig07-task-onstartup.png` | Scheduled task detail — OnStartup |
-| 8 | `images/fig08-lecmd-lnk.png` | LECmd parse of the LNK (to be added) |
-
 ---
 
 **Disclaimer:** This investigation was conducted entirely within an isolated, controlled lab environment for **educational and portfolio purposes**. All indicators of compromise, tools, and payloads referenced were used solely for simulation and forensic-analysis training. The `calc.exe` payloads and Atomic Red Team test definitions are benign stand-ins for real malicious behavior.
