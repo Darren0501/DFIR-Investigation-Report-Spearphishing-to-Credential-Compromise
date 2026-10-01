@@ -32,7 +32,7 @@ The actor used **Living-off-the-Land (LotL)** techniques almost exclusively — 
 Reconstructed by correlating **Sysmon Operational**, **Prefetch**, **UserAssist**, and **Scheduled Task** artifacts.
 *Figure 1 is the master Sysmon/event timeline that underpins this table.*
 
-![Figure 1 — Master Sysmon/Windows event timeline (EvtxECmd parsed into Timeline Explorer)](images/fig01-sysmon_defender_events.png)
+![Figure 1 — Master Sysmon/Windows event timeline (EvtxECmd parsed into Timeline Explorer)](Image/fig01-sysmon_defender_events.png)
 ***Figure 1.** Master timeline: `EvtxECmd` output of the Sysmon Operational and Windows Defender channels, viewed in Timeline Explorer. Note the clean survival of Sysmon through the `wevtutil` clearing at 15:47:55–56.*
 
 | # | Timestamp (UTC) | Phase | Tactic | Process / Event | Description |
@@ -67,7 +67,7 @@ The entry point is a double-extension shortcut, `CompanyA_Invoice.pdf.lnk`, plac
 | `{Programs}\System Tools\Command Prompt.lnk` | 3 | 15:48:45 |
 | `{Common Programs}\Administrative Tools\Event Viewer.lnk` | 2 | (post-exploit) |
 
-![Figure 2 — UserAssist evidence of LNK execution](images/fig02_userassist.png)
+![Figure 2 — UserAssist evidence of LNK execution](Image/fig02_userassist.png)
 ***Figure 2.** Registry Explorer — UserAssist. `CompanyA_Invoice.pdf.lnk` shows a run count of 1 at 15:46:19, establishing the user-execution entry point (T1204.002).*
 
 ---
@@ -88,7 +88,7 @@ The destination `20.205.243.166` (contacted during Phase 0 staging) is within **
 
 `whoami.exe` (T1033 — System Owner/User Discovery) and `hostname.exe` (T1082 — System Information Discovery) were executed repeatedly between 15:46:30 and 15:47:34 (confirmed in both **Prefetch** and **Sysmon**), consistent with automated recon between stages.
 
-![Figure 3 — Prefetch: executed binaries](images/fig03_prefetch_timeline.png)
+![Figure 3 — Prefetch: executed binaries](Image/fig03_prefetch_timeline.png)
 ***Figure 3.** PECmd — binaries executed from the victim volume, showing the `powershell → whoami/hostname → schtasks → rundll32 → wevtutil` progression.*
 
 ---
@@ -106,13 +106,13 @@ schtasks /create /tn T1053_005_OnStartup /sc onstart /ru system /tr "cmd.exe /c 
 - **Author:** `DESKTOP-UH2E7OM\Victim`.
 - The task names (`T1053_005_*`) directly identify the **Atomic Red Team T1053.005** test definitions used (see §12).
 
-![Figure 5 — Task Scheduler tree with rogue tasks](images/fig05_taskcache_tree.png)
+![Figure 5 — Task Scheduler tree with rogue tasks](Image/fig05_taskcache_tree.png)
 ***Figure 5.** Task Scheduler tree — `T1053_005_OnLogon` and `T1053_005_OnStartup` appear among legitimate tasks.*
 
-![Figure 6 — Scheduled task detail: OnLogon](images/fig06_taskcache_onlogon.png)
+![Figure 6 — Scheduled task detail: OnLogon](Image/fig06_taskcache_onlogon.png)
 ***Figure 6.** `T1053_005_OnLogon` — Action `cmd.exe /c calc.exe`, GUID `{9AFA980B-D7DA-4EDD-82DA-B225FF2A1EFE}`, author `DESKTOP-UH2E7OM\Victim`.*
 
-![Figure 7 — Scheduled task detail: OnStartup](images/fig07_taskcache_onstartup.png)
+![Figure 7 — Scheduled task detail: OnStartup](Image/fig07_taskcache_onstartup.png)
 ***Figure 7.** `T1053_005_OnStartup` — Action `cmd.exe /c calc.exe`, key `{CE7575DC-468E-4999-9B96-D120B5D22FE2}`.*
 
 ---
@@ -140,7 +140,7 @@ rundll32.exe C:\windows\System32\comsvcs.dll MiniDump 840 C:\Users\Victim\AppDat
 - **Target:** PID **840** (LSASS). **Output:** `C:\Users\Victim\AppData\Local\Temp\lsass-comsvcs.dmp` — the **user's local temp directory** (not a "hidden" directory).
 - **What the dump actually yields:** On a default Windows 11 host, offline parsing of this dump recovers **NTLM hashes** and **Kerberos ticket/TGT material** suitable for pass-the-hash / pass-the-ticket. **Cleartext passwords are *not* present by default** — they would only appear if **`WDigest` caching was enabled** (`HKLM\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigest\UseLogonCredential = 1`). Verify that value before asserting cleartext exposure.
 
-![Figure 4 — Prefetch: last-execution times for key binaries](images/fig04_bam.png)
+![Figure 4 — Prefetch: last-execution times for key binaries](Image/fig04_bam.png)
 ***Figure 4.** PECmd — last-run times, including `powershell.exe` (15:47:37) and `cmd.exe` (15:48:48), corroborating the credential-access window.*
 
 ---
