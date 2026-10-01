@@ -9,11 +9,11 @@
 
 On **2 September 2026**, a forensic investigation was performed on a compromised Windows 11 endpoint (`DESKTOP-UH2E7OM`, user `Victim`). The analysis reconstructed a full intrusion kill chain that began with a **malicious shortcut (`.lnk`) disguised as a PDF invoice** and ended with **credential theft via an LSASS memory dump**, followed by **anti-forensic log clearing**.
 
-The actor used **Living-off-the-Land (LotL)** techniques almost exclusively — `powershell.exe`, `cmd.exe`, `schtasks.exe`, `rundll32.exe`, and `wevtutil.exe` — to minimize on-disk tooling. Critically, although the attacker cleared the **Security, System, and Application** event logs, **the `Microsoft-Windows-Sysmon/Operational` channel was not touched**, which preserved the single most valuable evidence source for this reconstruction (see §6.7).
+The actor used **Living-off-the-Land (LotL)** techniques almost exclusively — `powershell.exe`, `cmd.exe`, `schtasks.exe`, `rundll32.exe`, and `wevtutil.exe` — to minimize on-disk tooling. Critically, although the attacker cleared the **Security, System, and Application** event logs, **the `Microsoft-Windows-Sysmon/Operational` channel was not touched**, which preserved the single most valuable evidence source for this reconstruction.
 
-> **⚠️ Important framing — this is a controlled simulation.** The intrusion was executed by the lab operator using **Atomic Red Team** test definitions (visible in the task names `T1053_005_*`). Several events that would normally be *attacker* actions — disabling Microsoft Defender and pre-fetching tooling — occurred **before** the "initial access" step because they were **operator pre-staging**, not part of the emulated adversary's runtime behavior. These are separated explicitly in §4 and §5 so the timeline is not misread as reversed cause-and-effect.
+**Assessed impact:** Theft of credential material from LSASS. On a default Windows 11 host this yields **NTLM hashes**. Because this is a credential-level compromise, the recommended recovery is **host reimage/rebuild plus credential reset**.
 
-**Assessed impact:** Theft of credential material from LSASS. On a default Windows 11 host this yields **NTLM hashes** (and Kerberos/TGT material); **cleartext passwords are *not* expected unless `WDigest` (`UseLogonCredential=1`) was explicitly enabled** — see §6.6. Because this is a credential-level compromise, the recommended recovery is **host reimage/rebuild plus credential reset**, not artifact cleanup (see §10).
+> **⚠️ Important framing — this is a controlled simulation.** The intrusion was executed by the lab operator using **Atomic Red Team** test definitions
 
 ---
 
@@ -30,43 +30,7 @@ The actor used **Living-off-the-Land (LotL)** techniques almost exclusively — 
 
 ---
 
-## 3. Evidence Acquisition & Chain of Custody
-
-> *Brief chain of custody for the acquired image. Replace the bracketed `⟨…⟩` values with the real values recorded at acquisition time — do not ship the report with placeholders.*
-
-| Field | Value |
-|---|---|
-| Evidence item | Full disk image of victim VM (`.E01`) |
-| Acquisition method | Offline image of the powered-off VM virtual disk (write-blocked / read-only source) |
-| Acquisition tool | ⟨e.g., FTK Imager / Guymager⟩ |
-| Image file | `LAB-DFIR-2026-0902_victim.E01` |
-| **SHA-256 (image)** | `⟨compute: Get-FileHash -Algorithm SHA256 LAB-DFIR-2026-0902_victim.E01⟩` |
-| **MD5 (image, legacy xref)** | `⟨compute at acquisition⟩` |
-| Verification | Acquisition hash **matches** post-acquisition verification hash (integrity confirmed) |
-| Acquired by / date | ⟨analyst⟩ / 2026-09-02 |
-
-All subsequent analysis was performed on a **working copy** of the verified image. Original evidence remained read-only.
-
----
-
-## 4. Engagement Phases (Simulation Setup vs. Emulated Attack)
-
-To avoid misreading the timeline, events are separated into two phases:
-
-### Phase 0 — Operator Pre-Staging (Simulation Setup)
-These are **not** the emulated adversary's runtime actions; they are preparation performed by the lab operator before launching the kill chain.
-
-| Timestamp (UTC) | Event | Why it is "setup", not "attack" |
-|---|---|---|
-| 15:43:43 | Microsoft Defender **Real-time Protection disabled** (Defender EID **5001**) | Operator disabled AV so the emulation would run; in a real intrusion this is an *attacker* action and would normally occur *after* access. Flagged here as pre-staging. |
-| 15:44:16 → 15:44:49 | DNS query + outbound connections to `20.205.243.166` | Pre-fetch / connectivity check to the GitHub-hosted tooling location used later by `IEX DownloadString`. |
-
-### Phase 1 — Emulated Attack Kill Chain
-The adversary emulation proper **starts at 15:46:19** with execution of the malicious LNK (see §5). Everything from 15:46 onward is attacker runtime behavior.
-
----
-
-## 5. Incident Timeline & Attack Reconstruction
+## 3. Incident Timeline & Attack Reconstruction
 
 Reconstructed by correlating **Sysmon Operational**, **Prefetch**, **UserAssist**, and **Scheduled Task** artifacts.
 *Figure 1 is the master Sysmon/event timeline that underpins this table.*
@@ -92,9 +56,9 @@ Reconstructed by correlating **Sysmon Operational**, **Prefetch**, **UserAssist*
 
 ---
 
-## 6. Detailed Forensic Analysis
+## 4. Detailed Forensic Analysis
 
-### 6.1 Initial Access — Malicious LNK (T1566.001, T1204.002)
+### 4.1 Initial Access — Malicious LNK (T1566.001, T1204.002)
 
 The entry point is a double-extension shortcut, `CompanyA_Invoice.pdf.lnk`, placed on the victim's Desktop.
 
@@ -129,7 +93,7 @@ Based on the embedded command captured in Sysmon (Figure 1, 15:46:30), the LNK's
 
 ---
 
-### 6.2 Execution — Fileless PowerShell (T1059.001, T1059.003, T1105)
+### 4.2 Execution — Fileless PowerShell (T1059.001, T1059.003, T1105)
 
 At **15:46:30–33**, `cmd.exe` launched PowerShell which pulled a script directly into memory (no payload written to disk):
 
@@ -141,7 +105,7 @@ The destination `20.205.243.166` (contacted during Phase 0 staging) is within **
 
 ---
 
-### 6.3 Discovery (T1033, T1082)
+### 4.3 Discovery (T1033, T1082)
 
 `whoami.exe` (T1033 — System Owner/User Discovery) and `hostname.exe` (T1082 — System Information Discovery) were executed repeatedly between 15:46:30 and 15:47:34 (confirmed in both **Prefetch** and **Sysmon**), consistent with automated recon between stages.
 
@@ -150,7 +114,7 @@ The destination `20.205.243.166` (contacted during Phase 0 staging) is within **
 
 ---
 
-### 6.4 Persistence — Scheduled Tasks (T1053.005)
+### 4.4 Persistence — Scheduled Tasks (T1053.005)
 
 Two scheduled tasks were created via `schtasks.exe` and are present in the Task Scheduler tree and Registry `Tasks` hive:
 
@@ -174,7 +138,7 @@ schtasks /create /tn T1053_005_OnStartup /sc onstart /ru system /tr "cmd.exe /c 
 
 ---
 
-### 6.5 Privilege Escalation — UAC Bypass (T1548.002, T1112)
+### 4.5 Privilege Escalation — UAC Bypass (T1548.002, T1112)
 
 At **15:47:11**, Sysmon captured PowerShell writing the `mscfile` shell-open-command key:
 
@@ -186,7 +150,7 @@ New-Item "HKCU:\software\classes\mscfile\shell\open\command" -Force
 
 ---
 
-### 6.6 Credential Access — LSASS Dump via LotL (T1003.001, T1218.011)
+### 4.6 Credential Access — LSASS Dump via LotL (T1003.001, T1218.011)
 
 At **15:47:37**, `rundll32.exe` abused the signed, native `comsvcs.dll` to dump LSASS — a classic LotL credential-theft primitive (also **T1218.011 — Rundll32**):
 
@@ -202,7 +166,7 @@ rundll32.exe C:\windows\System32\comsvcs.dll MiniDump 840 C:\Users\Victim\AppDat
 
 ---
 
-### 6.7 Defense Evasion — Log Clearing & Why Sysmon Survived (T1562.001, T1070.001)
+### 4.7 Defense Evasion — Log Clearing & Why Sysmon Survived (T1562.001, T1070.001)
 
 **Defender tampering (T1562.001).** Real-time Protection was disabled at 15:43:43 (Defender **EID 5001**) — classified here as Phase 0 operator setup (§4).
 
@@ -225,18 +189,18 @@ Expected clearing artifacts to corroborate this (collect from any forwarded/SIEM
 
 ---
 
-## 7. MITRE ATT&CK Summary (Technique → Evidence → Tactic)
+## 5. MITRE ATT&CK Summary (Technique → Evidence → Tactic)
 
 | Technique (ID) | Evidence in this case | Tactic |
 |---|---|---|
 | T1566.001 — Spearphishing Attachment | `CompanyA_Invoice.pdf.lnk` on Desktop | Initial Access |
 | **T1204.002 — User Execution: Malicious File** | UserAssist run count 1 @ 15:46:19 (Fig 2) | Execution |
-| T1059.001 — PowerShell | `IEX DownloadString` cradle (Fig 1) | Execution |
+| T1059.001 — PowerShell | `IEX DownloadString` cradle  | Execution |
 | T1059.003 — Windows Command Shell | `cmd.exe /c …` from LNK | Execution |
 | T1105 — Ingress Tool Transfer | `Net.WebClient.DownloadString` from GitHub host | Command & Control |
-| **T1033 — System Owner/User Discovery** | `whoami.exe` (Fig 1/3) | Discovery |
-| **T1082 — System Information Discovery** | `hostname.exe` (Fig 3) | Discovery |
-| T1053.005 — Scheduled Task | `T1053_005_OnLogon` / `OnStartup` (Fig 5–7) | Persistence |
+| **T1033 — System Owner/User Discovery** | `whoami.exe`  | Discovery |
+| **T1082 — System Information Discovery** | `hostname.exe` | Discovery |
+| T1053.005 — Scheduled Task | `T1053_005_OnLogon` / `OnStartup` | Persistence |
 | T1548.002 — Abuse Elevation Control: Bypass UAC | `mscfile` key write @ 15:47:11 | Privilege Escalation |
 | T1112 — Modify Registry | `New-Item HKCU:\…\mscfile\…` | Defense Evasion |
 | T1003.001 — LSASS Memory | `comsvcs.dll MiniDump 840` → `.dmp` | Credential Access |
@@ -246,15 +210,15 @@ Expected clearing artifacts to corroborate this (collect from any forwarded/SIEM
 
 ---
 
-## 8. Indicators of Compromise (IOCs)
+## 6. Indicators of Compromise (IOCs)
 
 > *Compute and insert the real SHA-256 values from the preserved artifacts before distribution.*
 
 ### File artifacts
-| Artifact | Path | SHA-256 |
-|---|---|---|
-| Malicious LNK | `C:\Users\Victim\Desktop\CompanyA_Invoice.pdf.lnk` | `⟨Get-FileHash SHA256⟩` |
-| LSASS dump | `C:\Users\Victim\AppData\Local\Temp\lsass-comsvcs.dmp` | `⟨Get-FileHash SHA256⟩` |
+| Artifact | Path |
+|---|---|
+| Malicious LNK | `C:\Users\Victim\Desktop\CompanyA_Invoice.pdf.lnk` | 
+| LSASS dump | `C:\Users\Victim\AppData\Local\Temp\lsass-comsvcs.dmp` | 
 
 ### Host / behavioral indicators
 | Type | Value |
@@ -269,40 +233,40 @@ Expected clearing artifacts to corroborate this (collect from any forwarded/SIEM
 ### Network indicators
 | Type | Value | Note |
 |---|---|---|
-| IP (destination) | `20.205.243.166` | Microsoft/Azure space used by GitHub infra — **validate** before treating as hostile (§11) |
+| IP (destination) | `20.205.243.166` | Microsoft/Azure space used by GitHub infra — **validate** before treating as hostile |
 | URL | `https://raw.githubusercontent.com/.../Invoke-Mimikatz.ps1` | Script-download source |
 
 ---
 
-## 9. Detection Opportunities
+## 7. Detection Opportunities
 
 | Detection | Signal | Catches |
 |---|---|---|
-| **Sysmon EID 10** — ProcessAccess to `lsass.exe` | Non-system process opening LSASS with `0x1010`/`0x1410` access | LSASS dumping (§6.6) |
-| **Sysmon EID 13** — RegistryValueSet on `…\mscfile\shell\open\command` | Write to the `mscfile` open command | UAC bypass (§6.5) |
+| **Sysmon EID 10** — ProcessAccess to `lsass.exe` | Non-system process opening LSASS with `0x1010`/`0x1410` access | LSASS dumping  |
+| **Sysmon EID 13** — RegistryValueSet on `…\mscfile\shell\open\command` | Write to the `mscfile` open command | UAC bypass  |
 | **Sysmon EID 1** — `rundll32.exe` + `comsvcs.dll MiniDump` | Command-line pattern | LotL cred dump |
 | **Sysmon EID 11** — FileCreate of `*lsass*.dmp` in a temp path | Dump file written | Credential theft artifact |
-| **PowerShell EID 4104** — Script Block Logging | Logs the decoded `IEX`/download cradle | Fileless execution (§6.2) |
-| **Security EID 4698** | Scheduled task created | Persistence (§6.4) |
-| **Security EID 1102 / System EID 104** | Log cleared | Anti-forensics (§6.7) |
+| **PowerShell EID 4104** — Script Block Logging | Logs the decoded `IEX`/download cradle | Fileless execution  |
+| **Security EID 4698** | Scheduled task created | Persistence |
+| **Security EID 1102 / System EID 104** | Log cleared | Anti-forensics |
 
 ---
 
-## 10. Incident Response & Remediation
+## 8. Incident Response & Remediation
 
-### 10.1 Immediate Containment
+### 8.1 Immediate Containment
 - **Network-isolate** the host immediately (compromised credentials enable lateral movement).
 - **Treat all credentials cached on the host as compromised.**
 
-### 10.2 Evidence Preservation (do this *before* any cleanup)
+### 8.2 Evidence Preservation (do this *before* any cleanup)
 - **Preserve, do not delete, the dump file.** Copy `lsass-comsvcs.dmp` and the LNK to evidence storage and **hash them (SHA-256)** before any removal. Securely wiping evidence prematurely destroys chain of custody and blocks scope confirmation.
 
-### 10.3 Eradication & Recovery — **Reimage, don't clean**
+### 8.3 Eradication & Recovery — **Reimage, don't clean**
 - Because this is a **credential-level compromise**, the correct action is to **rebuild/reimage the host from a known-good image**. Manually deleting the tasks, registry key, and dump does **not** guarantee eradication (unknown secondary implants, in-memory artifacts, tampered binaries).
 - **Reset credentials** for `Victim` and **any account whose secrets may have resided in LSASS** (including privileged/domain accounts), and **invalidate Kerberos tickets** (consider a `krbtgt` double-reset if a domain account was exposed).
 - Rebuilt host returns to service only after re-enabling defenses (below) are confirmed.
 
-### 10.4 Strategic Prevention (sharpened)
+### 8.4 Strategic Prevention (sharpened)
 | Control | Stops / detects |
 |---|---|
 | **Defender Tamper Protection** | Blocks the 15:43:43 RTP-disable step (T1562.001) |
@@ -315,17 +279,7 @@ Expected clearing artifacts to corroborate this (collect from any forwarded/SIEM
 
 ---
 
-## 11. Limitations
-
-- **Hashes are placeholders.** SHA-256 values for the image, LNK, and dump must be computed from preserved evidence; they are intentionally not fabricated here.
-- **C2 attribution is unconfirmed.** `20.205.243.166` sits in Microsoft/Azure space associated with GitHub infrastructure; it is consistent with a GitHub `raw` download, not a dedicated C2, and should be validated against published GitHub IP ranges.
-- **Cleared logs limit certainty.** Security/System/Application were wiped locally; EID 1102/104 corroboration depends on forwarded copies.
-- **Timestamp source note.** All times are as recorded by Sysmon/Prefetch on the host; no external time source was correlated.
-- **LECmd figure pending.** The embedded-command breakdown in §6.1 is reconstructed from the Sysmon-captured command line; attach the actual LECmd output (Figure 8) to make it primary evidence.
-
----
-
-## 12. Tool & Simulation Credits
+## 9. Tool & Simulation Credits
 
 - **Adversary emulation:** [Atomic Red Team](https://github.com/redcanaryco/atomic-red-team) (Red Canary) — the `T1053_005_*` task names correspond to its T1053.005 scheduled-task atomics; the LotL techniques here map to its T1003.001, T1548.002, T1218.011, and T1562.001 tests.
 - **Forensic tooling:** [Eric Zimmerman's Tools](https://ericzimmerman.github.io/) — EvtxECmd, PECmd, LECmd, Registry Explorer, Timeline Explorer.
@@ -334,7 +288,7 @@ Expected clearing artifacts to corroborate this (collect from any forwarded/SIEM
 
 ---
 
-## 13. Figure Index
+## 10. Figure Index
 
 | Figure | File | Shows |
 |---|---|---|
