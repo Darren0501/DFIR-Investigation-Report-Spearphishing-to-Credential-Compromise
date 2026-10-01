@@ -32,7 +32,7 @@ The actor used **Living-off-the-Land (LotL)** techniques almost exclusively — 
 Reconstructed by correlating **Sysmon Operational**, **Prefetch**, **UserAssist**, and **Scheduled Task** artifacts.
 *Figure 1 is the master Sysmon/event timeline that underpins this table.*
 
-![Figure 1 — Master Sysmon/Windows event timeline (EvtxECmd parsed into Timeline Explorer)](Image/fig01-sysmon_defender_events.png)
+![Figure 1 — Master Sysmon/Windows event timeline (EvtxECmd parsed into Timeline Explorer)](Image/fig01_sysmon_defender_events.png)
 ***Figure 1.** Master timeline: `EvtxECmd` output of the Sysmon Operational and Windows Defender channels, viewed in Timeline Explorer. Note the clean survival of Sysmon through the `wevtutil` clearing at 15:47:55–56.*
 
 | # | Timestamp (UTC) | Phase | Tactic | Process / Event | Description |
