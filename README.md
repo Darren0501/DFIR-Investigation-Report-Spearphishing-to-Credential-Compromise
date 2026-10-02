@@ -215,35 +215,21 @@ Expected clearing artifacts to corroborate this (collect from any forwarded/SIEM
 
 ---
 
-## 7. Detection Opportunities
+## 7. Incident Response & Remediation
 
-| Detection | Signal | Catches |
-|---|---|---|
-| **Sysmon EID 10** - ProcessAccess to `lsass.exe` | Non-system process opening LSASS with `0x1010`/`0x1410` access | LSASS dumping  |
-| **Sysmon EID 13** - RegistryValueSet on `…\mscfile\shell\open\command` | Write to the `mscfile` open command | UAC bypass  |
-| **Sysmon EID 1** - `rundll32.exe` + `comsvcs.dll MiniDump` | Command-line pattern | LotL cred dump |
-| **Sysmon EID 11** - FileCreate of `*lsass*.dmp` in a temp path | Dump file written | Credential theft artifact |
-| **PowerShell EID 4104** - Script Block Logging | Logs the decoded `IEX`/download cradle | Fileless execution  |
-| **Security EID 4698** | Scheduled task created | Persistence |
-| **Security EID 1102 / System EID 104** | Log cleared | Anti-forensics |
-
----
-
-## 8. Incident Response & Remediation
-
-### 8.1 Immediate Containment
+### 7.1 Immediate Containment
 - **Network-isolate** the host immediately (compromised credentials enable lateral movement).
 - **Treat all credentials cached on the host as compromised.**
 
-### 8.2 Evidence Preservation (do this *before* any cleanup)
+### 7.2 Evidence Preservation (do this *before* any cleanup)
 - **Preserve, do not delete, the dump file.** Copy `lsass-comsvcs.dmp` and the LNK to evidence storage and **hash them (SHA-256)** before any removal. Securely wiping evidence prematurely destroys chain of custody and blocks scope confirmation.
 
-### 8.3 Eradication & Recovery — **Reimage, don't clean**
+### 7.3 Eradication & Recovery — **Reimage, don't clean**
 - Because this is a **credential-level compromise**, the correct action is to **rebuild/reimage the host from a known-good image**. Manually deleting the tasks, registry key, and dump does **not** guarantee eradication (unknown secondary implants, in-memory artifacts, tampered binaries).
 - **Reset credentials** for `Victim` and **any account whose secrets may have resided in LSASS** (including privileged/domain accounts), and **invalidate Kerberos tickets** (consider a `krbtgt` double-reset if a domain account was exposed).
 - Rebuilt host returns to service only after re-enabling defenses (below) are confirmed.
 
-### 8.4 Strategic Prevention (sharpened)
+### 7.4 Strategic Prevention (sharpened)
 | Control | Stops / detects |
 |---|---|
 | **Defender Tamper Protection** | Blocks the 15:43:43 RTP-disable step (T1562.001) |
@@ -256,7 +242,7 @@ Expected clearing artifacts to corroborate this (collect from any forwarded/SIEM
 
 ---
 
-## 9. Tool & Simulation Credits
+## 8. Tool & Simulation Credits
 
 - **Adversary emulation:** [Atomic Red Team](https://github.com/redcanaryco/atomic-red-team) (Red Canary) — the `T1053_005_*` task names correspond to its T1053.005 scheduled-task atomics; the LotL techniques here map to its T1003.001, T1548.002, T1218.011, and T1562.001 tests.
 - **Forensic tooling:** [Eric Zimmerman's Tools](https://ericzimmerman.github.io/) — EvtxECmd, PECmd, LECmd, Registry Explorer, Timeline Explorer.
